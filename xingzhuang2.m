@@ -1,10 +1,13 @@
-I=imread('20.jpg');
-BW1=rgb2gray(I);           %BW1灰度图
+clc;
+clear all;
+I=imread('test202.jpg');
+% BW1=rgb2gray(I);           %BW1灰度图
+BW1=I;
 thresh = graythresh(BW1);     %自动确定二值化阈值；
 BW2 = im2bw(BW1,thresh);       %对图像自动二值化即可。 BW2二值图
 
 BW2=imcomplement(BW2);    %颜色翻转
-BW2 = bwareaopen(BW2,200,8);  %去文字
+BW2 = bwareaopen(BW2,300,8);  %去文字
 BW2=imcomplement(BW2);
 
 se=strel('disk',1);  
@@ -16,6 +19,7 @@ edge1 = bwperim(A,8);       %edge1轮廓图
 
 [w,h]=size(L);  %%%%L的宽高
 
+images=regionprops(L,'Image');
 status=regionprops(L,'BoundingBox');
 centroid = regionprops(L,'Centroid');
 %%%%%%%%%%对每一个内部轮廓提取%%%%%%%%%%%%%%%%%
@@ -42,20 +46,19 @@ for i=2:num
     xingz1{i}=H;
 end
 
-
 %%%%%%%%%%%%对每一个单个连通域进行填充%%%%%%
-% figure();
+ figure();
 for i=2:num
     X=xingz1{i};
     
     X=imfill(X,'holes');
     xingz2{i}=X;
-%     subplot(7,7,i);
-%     imshow(X);
+    subplot(7,7,i);
+    imshow(X);
 end
 
 %%%%%%%%检测凸包并填充%%%%%%%%%
-% figure();
+figure();
 for i=2:num
     pic1=xingz1{i};
     [y2,x2]=find(pic1==1);
@@ -65,8 +68,8 @@ for i=2:num
     pic11=zeros(r3,c3);
     lkt = roipoly(pic11,x2(k),y2(k));%画出凸包的区域，取出来得到掩膜
     tuxingz{i}=lkt;
-%     subplot(7,7,i);
-%     imshow(lkt);
+   subplot(7,7,i);
+   imshow(lkt);
 end
 
 %%%%%%%%计算凸包与原图形面积差%%%%%%%%%%%
@@ -82,15 +85,15 @@ for i=2:num
 end
 
 
-% figure();
+figure();
 for i=2:num
-    if divs{i}>0   %若面积差大于0
+    if divs{i}>100   %若面积差大于100
         continue;
     end
     houxuan=xingz2{i};
     houxuans{i}=houxuan;
-%     subplot(7,7,i);
-%     imshow(houxuan);
+   subplot(7,7,i);
+   imshow(houxuan);
 end
 
 
@@ -119,11 +122,11 @@ for i=2:len
     ratio=area/areaR;
     ckd=abs((b2-b1)-(a2-a1));%长宽比
     if(ratio>=0.95)
-        if(ckd<3)
-            squares(1,i)=1;
-        else
-            rectangles(1,i)=1;
-        end
+%         if(ckd<3)
+%             squares(1,i)=1;
+%         else
+       rectangles(1,i)=1;
+%         end
     end
     if(ratio>=0.73&&ratio<=0.83)
         if(ckd<6)
@@ -158,3 +161,41 @@ for i=2:num
         text(centroid(i,1).Centroid(1,1),centroid(i,1).Centroid(1,2), '椭圆','Color', 'c') 
     end
 end
+
+%%%%%%%%%%%%%%%%%%%%%%%%生成图元层%%%%%%%%%%%%%%%
+[w,h]=size(COPY); 
+COPY2=ones(w,h);
+for i=2:len
+    houxuan=houxuans{i};
+    if ~isempty(houxuan)
+        a1=ceil(status(i).BoundingBox(1))+1;
+        a2=ceil(status(i).BoundingBox(1)+status(i).BoundingBox(3));
+        b1=ceil(status(i).BoundingBox(2))+1;
+        b2=ceil(status(i).BoundingBox(2)+status(i).BoundingBox(4));
+        image=images(i,1).Image;
+        image=imcomplement(image);
+        for j=b1:b2
+            for z=a1:a2
+                COPY2(j,z)=image(j-b1+1,z-a1+1); 
+            end
+        end
+    end
+end
+figure,imshow(COPY2);
+title('图元层');
+
+COPY3=BW2;
+figure,imshow(COPY3);
+title('原图');
+
+for i=2:len
+    houxuan=houxuans{i};
+    if ~isempty(houxuan)
+        a1=ceil(status(i).BoundingBox(1))-2;
+        a2=ceil(status(i).BoundingBox(1)+status(i).BoundingBox(3))+1;
+        b1=ceil(status(i).BoundingBox(2))-2;
+        b2=ceil(status(i).BoundingBox(2)+status(i).BoundingBox(4))+1;
+        COPY3(b1:b2,a1:a2)=1;
+    end
+end
+figure,imshow(COPY3);
