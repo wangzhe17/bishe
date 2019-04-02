@@ -1,7 +1,8 @@
 function [A,M]=zhang(filename)
 tic();
-A=imread (filename) ; 
-A=im2bw (A,0.8);
+% A=imread (filename) ; 
+% A=im2bw (A,0.8);
+A=filename;
 I=~A ; 
 [m n]=size (I) ; 
 %Zhang Quick Method
