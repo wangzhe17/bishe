@@ -1,21 +1,25 @@
 clc;
 clear all;
-I=imread('56.png');
+I=imread('97.png');
+I=imresize(I,2);
 BW1=rgb2gray(I);           %BW1灰度图
 thresh = graythresh(BW1);     %自动确定二值化阈值；
 BW2 = im2bw(BW1,thresh);       %对图像自动二值化即可。 BW2二值图
 
 BW2=imcomplement(BW2);    %颜色翻转
-BW2 = bwareaopen(BW2,380,8);  %去文字
+BW2 = bwareaopen(BW2,1580,8);  %去文字
 BW2=imcomplement(BW2);
-figure,imshow(BW2);
+
 BW3=BW2;
 BW3=~BW3;
 
-se=strel('disk',5);  
+se=strel('disk',10);  
 BW3=imclose(BW3,se);
 BW3=~BW3;
+% figure,imshow(BW3);
 A=imerode(BW3,se);     %一次腐蚀操作
+[A1,AM]=zhang(A);
+A=imerode(AM,se);     %一次腐蚀操作
 [A1,AM]=zhang(A);
 A=imerode(AM,se);     %一次腐蚀操作
 [A1,AM]=zhang(A);
@@ -156,8 +160,8 @@ for i=2:len
        rectangles(1,i)=1;   %只检测矩形
 %         end
     end
-    if(ratio>=0.73&&ratio<=0.83)
-        if(ckd<6)
+    if(ratio>=0.66&&ratio<=0.87)
+        if(ckd<10)
             circles(1,i)=1;
         else
             eclipses(1,i)=1;
@@ -208,12 +212,72 @@ for i=2:len
         COPY3(b1:b2,a1:a2)=1;
     end
 end
-% figure,imshow(COPY3);
+% figure,imshow(COPY3),title('连接线');
 figure();
 subplot(2,2,1),imshow(AM);
 subplot(2,2,2),imshow(COPY2);
 subplot(2,2,3),imshow(COPY3);
+
+
 %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%连接线箭头
+COPY5=BW2;
+for i=2:len
+    houxuan=houxuans{i};
+    if ~isempty(houxuan)
+        if rectangles(1,i)==1
+            a1=ceil(status(i).BoundingBox(1))-6;
+            a2=ceil(status(i).BoundingBox(1)+status(i).BoundingBox(3))+7;
+            b1=ceil(status(i).BoundingBox(2))-6;
+            b2=ceil(status(i).BoundingBox(2)+status(i).BoundingBox(4))+7;
+            COPY5(b1:b2,a1:a2)=1;
+        end
+    end
+end
+
+for i=2:len
+    houxuan=houxuans{i};
+    if ~isempty(houxuan)
+        if circles(1,i)==1
+            a1=ceil(status(i).BoundingBox(1))-9;
+            a2=ceil(status(i).BoundingBox(1)+status(i).BoundingBox(3))+9;
+            b1=ceil(status(i).BoundingBox(2))-9;
+            b2=ceil(status(i).BoundingBox(2)+status(i).BoundingBox(4))+9;
+            tmp=~COPY5(b1:b2,a1:a2);
+            c1=(b2-b1)/2+1;
+            c2=(a2-a1)/2+1;
+            r=min([(b2-b1),(a2-a1)])/2;
+            theta=0:2*pi/3600:2*pi;
+            Circle1=c1+r*cos(theta);
+            Circle2=c2+r*sin(theta);
+            l=roipoly(tmp,Circle1,Circle2);
+%             figure,imshow(l);
+            for i1= 1:(b2-b1)
+                for j1=1:(a2-a1)
+                    if l(i1,j1)==1
+                        tmp(i1,j1)=0;
+                    end
+                end
+            end
+            COPY5(b1:b2,a1:a2)=~tmp;
+%             figure,imshow(tmp);
+        end
+    end
+end
+% lkt = roipoly(pic11,x2(k),y2(k))
+COPY5=imcomplement(COPY5);    %颜色翻转
+COPY5 = bwareaopen(COPY5,180,8);  %去文字
+COPY5=imcomplement(COPY5);
+figure,imshow(COPY5),title('连接线');
+
+
+
+
+
+%%
+
+%%
+%%进一步细化
 COPY3=~COPY3;
 [w2,h2]=size(COPY3); 
 for i=2:w2-1
@@ -226,16 +290,35 @@ for i=2:w2-1
                 COPY3(i-1:i+1,j-1:j+1)=B;
             end
         end
+        if B(2,2)==1 && sum(B(:))==5
+            if B(1,3)==1&&B(2,2)==1&&B(2,3)==1&&B(3,1)==1&&B(3,2)==1
+                B(2,3)=0;
+                B(3,2)=0;
+                COPY3(i-1:i+1,j-1:j+1)=B;
+            end
+        end
+        if B(2,2)==1 && sum(B(:))==4
+            if B(1,1)==1&&B(2,1)==1&&B(2,2)==1&&B(3,3)==1
+                B(2,1)=0;
+                COPY3(i-1:i+1,j-1:j+1)=B;
+            end
+        end
+        if B(2,2)==1 && sum(B(:))==4
+            if B(1,3)==1&&B(2,2)==1&&B(2,3)==1&&B(3,1)==1
+                B(2,3)=0;
+                COPY3(i-1:i+1,j-1:j+1)=B;
+            end
+        end
     end
 end
                     
-figure,imshow(COPY3),title("test");
+% figure,imshow(COPY3),title("test");
 COPY3=~COPY3;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%
 COPY3=imcomplement(COPY3);
 [ll,mm] = bwlabel(COPY3,8);
-figure,imshow(COPY3);
+% figure,imshow(COPY3);
 
 status2=regionprops(ll,'BoundingBox');
 centroid2 = regionprops(ll,'Centroid');
@@ -286,13 +369,20 @@ for ts=1:mm
 end
 
 %%
+J=COPY5;
+
+
+
+%%
+
+%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 figure,imshow(I);
 hold on;
 %%%%%%%%%%%%%%%%%%%%%%%%%在原图中进行标注%%%%%%%%%%%%%%%%%%%%%%%%%%%
 for i=2:num
     if(rectangles(1,i)==1)
-        rectangle('position',status(i).BoundingBox,'edgecolor','c','LineWidth',3);
+        rectangle('position',status(i).BoundingBox,'edgecolor','c','LineWidth',5);
         text(centroid(i,1).Centroid(1,1),centroid(i,1).Centroid(1,2), '矩形','Color', 'c') 
     end
     if(diamonds(1,i)==1)
@@ -300,7 +390,7 @@ for i=2:num
         text(centroid(i,1).Centroid(1,1),centroid(i,1).Centroid(1,2), '菱形','Color', 'b') 
     end
     if(circles(1,i)==1)
-        rectangle('position',status(i).BoundingBox,'edgecolor','g','LineWidth',3);
+        rectangle('position',status(i).BoundingBox,'Curvature',[1,1],'edgecolor','g','LineWidth',5);
         text(centroid(i,1).Centroid(1,1),centroid(i,1).Centroid(1,2), '圆形','Color', 'g') 
     end
     if(eclipses(1,i)==1)
@@ -308,6 +398,7 @@ for i=2:num
         text(centroid(i,1).Centroid(1,1),centroid(i,1).Centroid(1,2), '椭圆','Color', 'c') 
     end
 end
+
 %%%%%%%%%%%%%%%画出端点位置%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 for i=1:length(endpoints)
     zuobiaos=endpoints{i};
@@ -318,13 +409,15 @@ for i=1:length(endpoints)
         plot(x0,y0,'ro','LineWidth',5,'MarkerFaceColor','r')
     end
 end
-for i=1:length(jointpoints)
-    zuobiaos=jointpoints{i};
-    for j=1:length(zuobiaos)
-        jj=zuobiaos{j};
-        x0=jj(1,1);
-        y0=jj(1,2);
-        plot(x0,y0,'bo','LineWidth',5,'MarkerFaceColor','b')
+if(~isempty(jointpoints))
+    for i=1:length(jointpoints)
+        zuobiaos=jointpoints{i};
+        for j=1:length(zuobiaos)
+            jj=zuobiaos{j};
+            x0=jj(1,1);
+            y0=jj(1,2);
+            plot(x0,y0,'bo','LineWidth',5,'MarkerFaceColor','b')
+        end
     end
 end
 hold off;
